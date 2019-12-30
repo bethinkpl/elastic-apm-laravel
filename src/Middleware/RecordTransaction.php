@@ -64,7 +64,18 @@ class RecordTransaction
             'type' => 'HTTP'
         ]);
 
-        $transaction->setSpans(app('query-log')->toArray());
+        // @see https://github.com/philkra/elastic-apm-php-agent/blob/master/docs/examples/spans.md
+				foreach (app('query-log')->toArray() as $spanContext) {
+					$spanDb = $this->agent->factory()->newSpan($spanContext['name'], $transaction);
+					$spanDb->setAction('query');
+					$spanDb->setType($spanContext['type']);
+					// $spanDb->setStacktrace($spanContext['stacktrace']);
+					$spanDb->setContext($spanContext['context']);
+					$spanDb->start(); // TODO: allow to set the timer in the past
+					$spanDb->stop($spanContext['duration']); // in [ms]
+
+					$this->agent->putEvent($spanDb);
+				}
 
         if (config('elastic-apm.transactions.use_route_uri')) {
             $transaction->setTransactionName($this->getRouteUriTransactionName($request));
