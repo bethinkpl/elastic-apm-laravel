@@ -182,9 +182,13 @@ class ElasticApmServiceProvider extends ServiceProvider
                 ];
             })->values();
 
+
+            // SQL type, e.g. SELECT, INSERT, DELETE, UPDATE, SET, ...
+            $queryType = strtoupper(strtok(trim($query->sql), ' '));
+
             // https://www.elastic.co/guide/en/apm/server/master/exported-fields-apm-span.html
             $query = [
-                'name' => 'Eloquent Query',
+                'name' => $queryType,
                 'type' => 'db.mysql.query',
 
                 // calculate start time from duration
