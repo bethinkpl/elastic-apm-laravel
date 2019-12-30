@@ -31,7 +31,7 @@ class RecordTransaction
 
     /**
      * [handle description]
-     * @param  Request $request [description]
+     * @param  \Illuminate\Http\Request  $request [description]
      * @param  Closure $next [description]
      * @return [type]           [description]
      */
@@ -84,6 +84,16 @@ class RecordTransaction
         if (config('elastic-apm.transactions.use_route_uri')) {
             $transaction->setTransactionName($this->getRouteUriTransactionName($request));
         }
+
+        // handle X-Requested-By header
+				$requestedBy = $request->headers->get('X-Requested-By', 'end-user');
+
+        // X-Requested-With: XMLHttpRequest (AJAX requests)
+				if ($request->headers->get('X-Requested-With') === 'XMLHttpRequest') {
+					$requestedBy = 'end-user-ajax';
+				}
+
+				$transaction->setTags(['requested_by' => $requestedBy]);
 
         $transaction->stop($this->timer->getElapsedInMilliseconds());
 

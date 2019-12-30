@@ -1,12 +1,16 @@
 # PHP Elastic APM for Laravel & Lumen
 
 Laravel package of the https://github.com/philkra/elastic-apm-php-agent library, automatically handling transactions and errors/exceptions. If using `Illuminate\Support\Facades\Auth` the user Id added to the context.
-Tested with Laravel `5.6.*` and the philkra/elastic-apm-php-agent version `7.x`.
+Tested with Laravel `5.7.*` and the philkra/elastic-apm-php-agent version `7.x`.
 
 ## Install
 ```
-composer require philkra/elastic-apm-laravel
+composer require bethinkpl/elastic-apm-laravel
 ```
+
+## Additional features
+
+* `X-Requested-By` HTTP request header value is set as `labels.requested_by` APM transaction field (`end-user-ajax` value is used when `X-Requested-With: XMLHttpRequest` is set)
 
 ## Middleware
 ### Laravel
