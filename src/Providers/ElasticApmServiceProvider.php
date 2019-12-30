@@ -182,11 +182,14 @@ class ElasticApmServiceProvider extends ServiceProvider
                 ];
             })->values();
 
+            // https://www.elastic.co/guide/en/apm/server/master/exported-fields-apm-span.html
             $query = [
                 'name' => 'Eloquent Query',
                 'type' => 'db.mysql.query',
-                'start' => round((microtime(true) - $query->time / 1000 - $this->startTime) * 1000, 3),
+
                 // calculate start time from duration
+                // $query->time is in milliseconds
+                'start' => round(microtime(true) - $query->time / 1000, 3),
                 'duration' => round($query->time, 3),
                 'stacktrace' => $stackTrace,
                 'context' => [

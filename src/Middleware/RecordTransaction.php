@@ -66,14 +66,17 @@ class RecordTransaction
         ]);
 
 			foreach (app('query-log')->toArray() as $spanContext) {
-					// @see https://github.com/philkra/elastic-apm-php-agent/blob/master/docs/examples/spans.md
+					// @see https://www.elastic.co/guide/en/apm/server/master/exported-fields-apm-span.html
 					$spanDb = new Span($spanContext['name'], $transaction);
 					$spanDb->setAction('query');
 					$spanDb->setType($spanContext['type']);
 					$spanDb->setStacktrace($spanContext['stacktrace']->toArray());
 					$spanDb->setContext($spanContext['context']);
-					$spanDb->start(); // TODO: allow to set the timer in the past
+
+					$spanDb->start();
 					$spanDb->stop($spanContext['duration']); // in [ms]
+
+					$spanDb->setStart($spanContext['start']); // in [us]
 
 					$this->agent->putEvent($spanDb);
 				}
