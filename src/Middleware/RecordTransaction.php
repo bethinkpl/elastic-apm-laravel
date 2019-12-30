@@ -5,6 +5,7 @@ namespace PhilKra\ElasticApmLaravel\Middleware;
 use Closure;
 use Illuminate\Support\Facades\Log;
 use PhilKra\Agent;
+use PhilKra\Events\Span;
 use PhilKra\Helper\Timer;
 
 class RecordTransaction
@@ -64,12 +65,12 @@ class RecordTransaction
             'type' => 'HTTP'
         ]);
 
-        // @see https://github.com/philkra/elastic-apm-php-agent/blob/master/docs/examples/spans.md
-				foreach (app('query-log')->toArray() as $spanContext) {
-					$spanDb = $this->agent->factory()->newSpan($spanContext['name'], $transaction);
+			foreach (app('query-log')->toArray() as $spanContext) {
+					// @see https://github.com/philkra/elastic-apm-php-agent/blob/master/docs/examples/spans.md
+					$spanDb = new Span($spanContext['name'], $transaction);
 					$spanDb->setAction('query');
 					$spanDb->setType($spanContext['type']);
-					// $spanDb->setStacktrace($spanContext['stacktrace']);
+					$spanDb->setStacktrace($spanContext['stacktrace']->toArray());
 					$spanDb->setContext($spanContext['context']);
 					$spanDb->start(); // TODO: allow to set the timer in the past
 					$spanDb->stop($spanContext['duration']); // in [ms]
