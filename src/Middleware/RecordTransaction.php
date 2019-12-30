@@ -5,7 +5,7 @@ namespace PhilKra\ElasticApmLaravel\Middleware;
 use Closure;
 use Illuminate\Support\Facades\Log;
 use PhilKra\Agent;
-use PhilKra\Events\Span;
+use PhilKra\ElasticApmLaravel\Events\Span;
 use PhilKra\Helper\Timer;
 
 class RecordTransaction
