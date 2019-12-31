@@ -12,6 +12,10 @@ use PhilKra\ElasticApmLaravel\Apm\SpanCollection;
 use PhilKra\ElasticApmLaravel\Apm\Transaction;
 use PhilKra\ElasticApmLaravel\Contracts\VersionResolver;
 use PhilKra\Helper\Timer;
+use GuzzleHttp\Middleware;
+use GuzzleHttp\HandlerStack;
+use Psr\Http\Message\RequestInterface;
+use Psr\Http\Message\ResponseInterface;
 
 class ElasticApmServiceProvider extends ServiceProvider
 {
@@ -35,6 +39,10 @@ class ElasticApmServiceProvider extends ServiceProvider
 
         if (config('elastic-apm.active') === true && config('elastic-apm.spans.querylog.enabled') !== false) {
             $this->listenForQueries();
+        }
+
+        if (config('elastic-apm.active') === true && config('elastic-apm.spans.httplog.enabled') === true) {
+            $this->listenForHttpRequests();
         }
     }
 
@@ -211,4 +219,21 @@ class ElasticApmServiceProvider extends ServiceProvider
             app('query-log')->push($query);
         });
     }
+
+		protected function listenForHttpRequests() : HandlerStack
+		{
+			$middleware = Middleware::tap(
+				function (RequestInterface $request, array $options) {
+					\Log::info($request->getUri());
+				},
+				function (RequestInterface $request, array $options, ResponseInterface $response) {
+					\Log::info($request->getUri());
+				}
+			);
+
+			$stack = HandlerStack::create();
+			$stack->push($middleware, 'apm_httplog');
+
+			return $stack;
+		}
 }
