@@ -11,6 +11,19 @@ composer require bethinkpl/elastic-apm-laravel
 ## Additional features
 
 * `X-Requested-By` HTTP request header value is set as `labels.requested_by` APM transaction field (`end-user-ajax` value is used when `X-Requested-With: XMLHttpRequest` is set)
+* tracking of HTTP requests performed using GuzzleHttp library. Simply add the following middleware to your Guzzle client:
+
+```php
+<?php
+
+use PhilKra\ElasticApmLaravel\Providers\ElasticApmServiceProvider;
+use GuzzleHttp\HandlerStack;
+
+$handler = HandlerStack::create();
+$handler->push(ElasticApmServiceProvider::getGuzzleMiddleware());
+
+// create your client with 'handler' option passed
+```
 
 ## Middleware
 ### Laravel

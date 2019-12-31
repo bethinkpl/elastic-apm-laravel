@@ -231,7 +231,7 @@ class ElasticApmServiceProvider extends ServiceProvider
 						return;
 					}
 
-					$requestTime = (microtime(true) - self::$lastHttpRequestStart) * 1000; // in mileseconds
+					$requestTime = (microtime(true) - self::$lastHttpRequestStart) * 1000; // in miliseconds
 
 					$method = $request->getMethod();
 					$host = $request->getUri()->getHost();
