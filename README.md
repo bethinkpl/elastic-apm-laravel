@@ -96,6 +96,7 @@ The following environment variables are supported in the default configuration:
 |APM_SECRETTOKEN    | Secret token, if required. |
 |APM_APIVERSION     | APM API version, defaults to `v1` (only v1 is supported at this time). |
 |APM_USEROUTEURI    | `true` or `false` defaults to `false`. The default behavior is to record the URL as sent in the request. This can result in excessive unique entries in APM. Set to `true` to have the agent use the route URL instead. |
+|APM_NORMALIZEURI   | `true` or `false` defaults to `false`. If enabled, removes variable parts from URI when generating transaction name (e.g. `GET /foo/bar/123` is reported as `GET /foo/bar/N`). **`APM_USEROUTEURI` needs to be enabled**. |
 |APM_QUERYLOG       | `true` or `false` defaults to 'true'. Set to `false` to completely disable query logging, or to `auto` if you would like to use the threshold feature. |
 |APM_THRESHOLD      | Query threshold in milliseconds, defaults to `200`. If a query takes longer then 200ms, we enable the query log. Make sure you set `APM_QUERYLOG=auto`. |
 |APM_BACKTRACEDEPTH | Defaults to `25`. Depth of backtrace in query span. |

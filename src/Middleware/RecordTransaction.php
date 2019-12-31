@@ -82,7 +82,12 @@ class RecordTransaction
 				}
 
         if (config('elastic-apm.transactions.use_route_uri')) {
-            $transaction->setTransactionName($this->getRouteUriTransactionName($request));
+					if (config('elastic-apm.transactions.normalize_uri')) {
+						$transaction->setTransactionName($this->getMormalizedTransactionName($request));
+					}
+					else {
+						$transaction->setTransactionName($this->getRouteUriTransactionName($request));
+					}
         }
 
         // handle X-Requested-By header
@@ -149,6 +154,27 @@ class RecordTransaction
             $request->server->get('REQUEST_METHOD'),
             $path
         );
+    }
+
+    /**
+     * @param  \Illuminate\Http\Request $request
+     *
+     * @return string
+     */
+    protected function getMormalizedTransactionName(\Illuminate\Http\Request $request): string
+    {
+        $path = $this->getRouteUriTransactionName($request);
+
+        // "PUT /api/v2/product/6404" becomes "PUT /api/v2/product/N"
+				$parts = [];
+
+				$tok = strtok($path, '/');
+				while ($tok !== false) {
+					$parts[] = is_numeric($tok) ? 'N' : $tok;
+					$tok = strtok("/");
+				}
+
+				return join('/', $parts);
     }
 
     /**

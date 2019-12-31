@@ -42,6 +42,9 @@ return [
         //This option will bundle transaction on the route name without variables
         'use_route_uri' => env('APM_USEROUTEURI', false),
 
+        //This option will normalize transaction names
+        'normalize_uri' => env('APM_NORMALIZEURI', false),
+
     ],
 
     'spans' => [
