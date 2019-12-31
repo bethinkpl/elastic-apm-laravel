@@ -189,7 +189,8 @@ class ElasticApmServiceProvider extends ServiceProvider
             // https://www.elastic.co/guide/en/apm/server/master/exported-fields-apm-span.html
             $query = [
                 'name' => $queryType,
-                'type' => 'db.mysql.query',
+                'type' => 'db',
+                'subtype' => 'mysql',
 
                 // calculate start time from duration
                 // $query->time is in milliseconds
