@@ -24,7 +24,7 @@ class Span extends Events\Span {
 	private $subtype = false;
 
 	/**
-	 * Set the timestamp of span start (in seconds)
+	 * Set the span subtype (e.g. for type "db" this can be "mysql" or "sqlite").
 	 *
 	 * @return void
 	 */
