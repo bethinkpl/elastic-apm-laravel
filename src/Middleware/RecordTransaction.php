@@ -65,40 +65,40 @@ class RecordTransaction
             'type' => 'HTTP'
         ]);
 
-			foreach (app('query-log')->toArray() as $spanContext) {
-					// @see https://www.elastic.co/guide/en/apm/server/master/exported-fields-apm-span.html
-					$spanDb = new Span($spanContext['name'], $transaction);
-					$spanDb->setAction('query');
-					$spanDb->setType($spanContext['type']);
-					$spanDb->setStacktrace($spanContext['stacktrace']->toArray());
-					$spanDb->setContext($spanContext['context']);
+        foreach (app('query-log')->toArray() as $spanContext) {
+            // @see https://www.elastic.co/guide/en/apm/server/master/exported-fields-apm-span.html
+            $spanDb = new Span($spanContext['name'], $transaction);
+            $spanDb->setAction('query');
+            $spanDb->setType($spanContext['type']);
+            $spanDb->setStacktrace($spanContext['stacktrace']->toArray());
+            $spanDb->setContext($spanContext['context']);
 
-					$spanDb->start();
-					$spanDb->stop($spanContext['duration']); // in [ms]
+            $spanDb->start();
+            $spanDb->stop($spanContext['duration']); // in [ms]
 
-					$spanDb->setStart($spanContext['start']); // in [us]
+            $spanDb->setStart($spanContext['start']); // in [us]
 
-					$this->agent->putEvent($spanDb);
-				}
+            $this->agent->putEvent($spanDb);
+        }
 
         if (config('elastic-apm.transactions.use_route_uri')) {
-					if (config('elastic-apm.transactions.normalize_uri')) {
-						$transaction->setTransactionName($this->getMormalizedTransactionName($request));
-					}
-					else {
-						$transaction->setTransactionName($this->getRouteUriTransactionName($request));
-					}
+            if (config('elastic-apm.transactions.normalize_uri')) {
+                $transaction->setTransactionName($this->getMormalizedTransactionName($request));
+            }
+            else {
+                $transaction->setTransactionName($this->getRouteUriTransactionName($request));
+            }
         }
 
         // handle X-Requested-By header
-				$requestedBy = $request->headers->get('X-Requested-By', 'end-user');
+        $requestedBy = $request->headers->get('X-Requested-By', 'end-user');
 
         // X-Requested-With: XMLHttpRequest (AJAX requests)
-				if ($request->headers->get('X-Requested-With') === 'XMLHttpRequest') {
-					$requestedBy = 'end-user-ajax';
-				}
+        if ($request->headers->get('X-Requested-With') === 'XMLHttpRequest') {
+            $requestedBy = 'end-user-ajax';
+        }
 
-				$transaction->setTags(['requested_by' => $requestedBy]);
+        $transaction->setTags(['requested_by' => $requestedBy]);
 
         $transaction->stop($this->timer->getElapsedInMilliseconds());
 
@@ -166,15 +166,15 @@ class RecordTransaction
         $path = $this->getRouteUriTransactionName($request);
 
         // "PUT /api/v2/product/6404" becomes "PUT /api/v2/product/N"
-				$parts = [];
+        $parts = [];
 
-				$tok = strtok($path, '/');
-				while ($tok !== false) {
-					$parts[] = is_numeric($tok) ? 'N' : $tok;
-					$tok = strtok("/");
-				}
+        $tok = strtok($path, '/');
+        while ($tok !== false) {
+            $parts[] = is_numeric($tok) ? 'N' : $tok;
+            $tok = strtok("/");
+        }
 
-				return join('/', $parts);
+        return join('/', $parts);
     }
 
     /**
