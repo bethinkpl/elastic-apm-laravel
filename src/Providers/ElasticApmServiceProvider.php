@@ -186,9 +186,10 @@ class ElasticApmServiceProvider extends ServiceProvider
             // SQL type, e.g. SELECT, INSERT, DELETE, UPDATE, SET, ...
             $queryType = strtoupper(strtok(trim($query->sql), ' '));
 
-            // https://www.elastic.co/guide/en/apm/server/master/exported-fields-apm-span.html
+            // @see https://www.elastic.co/guide/en/apm/server/master/span-api.html
             $query = [
                 'name' => $queryType,
+                'action' => 'query',
                 'type' => 'db',
                 'subtype' => 'mysql',
 

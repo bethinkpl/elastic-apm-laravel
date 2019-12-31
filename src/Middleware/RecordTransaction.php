@@ -68,8 +68,9 @@ class RecordTransaction
         foreach (app('query-log')->toArray() as $spanContext) {
             // @see https://www.elastic.co/guide/en/apm/server/master/exported-fields-apm-span.html
             $spanDb = new Span($spanContext['name'], $transaction);
-            $spanDb->setAction('query');
+            $spanDb->setAction($spanContext['action']);
             $spanDb->setType($spanContext['type']);
+            $spanDb->setSubtype($spanContext['subtype']);
             $spanDb->setStacktrace($spanContext['stacktrace']->toArray());
             $spanDb->setContext($spanContext['context']);
 
