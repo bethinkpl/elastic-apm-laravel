@@ -65,14 +65,20 @@ class RecordTransaction
             'type' => 'HTTP'
         ]);
 
-        foreach (app('query-log')->toArray() as $spanContext) {
+        foreach (app('apm-spans-log')->toArray() as $spanContext) {
             // @see https://www.elastic.co/guide/en/apm/server/master/exported-fields-apm-span.html
             $spanDb = new Span($spanContext['name'], $transaction);
-            $spanDb->setAction($spanContext['action']);
             $spanDb->setType($spanContext['type']);
             $spanDb->setSubtype($spanContext['subtype']);
-            $spanDb->setStacktrace($spanContext['stacktrace']->toArray());
             $spanDb->setContext($spanContext['context']);
+
+            // optiponal fields
+            if (isset($spanContext['action'])) {
+                $spanDb->setAction($spanContext['action']);
+            }
+            if (isset($spanContext['stacktrace'])) {
+                $spanDb->setStacktrace($spanContext['stacktrace']->toArray());
+            }
 
             $spanDb->start();
             $spanDb->stop($spanContext['duration']); // in [ms]

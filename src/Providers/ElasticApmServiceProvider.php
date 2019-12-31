@@ -15,7 +15,7 @@ use PhilKra\Helper\Timer;
 use GuzzleHttp\Middleware;
 use GuzzleHttp\HandlerStack;
 use Psr\Http\Message\RequestInterface;
-use Psr\Http\Message\ResponseInterface;
+use GuzzleHttp\Promise\FulfilledPromise;
 
 class ElasticApmServiceProvider extends ServiceProvider
 {
@@ -23,6 +23,9 @@ class ElasticApmServiceProvider extends ServiceProvider
     private $startTime;
     /** @var string  */
     private $sourceConfigPath = __DIR__ . '/../../config/elastic-apm.php';
+
+    /** @var float */
+    private static $lastHttpRequestStart;
 
     /**
      * Bootstrap the application services.
@@ -39,10 +42,6 @@ class ElasticApmServiceProvider extends ServiceProvider
 
         if (config('elastic-apm.active') === true && config('elastic-apm.spans.querylog.enabled') !== false) {
             $this->listenForQueries();
-        }
-
-        if (config('elastic-apm.active') === true && config('elastic-apm.spans.httplog.enabled') === true) {
-            $this->listenForHttpRequests();
         }
     }
 
@@ -87,7 +86,7 @@ class ElasticApmServiceProvider extends ServiceProvider
         $this->app->instance(Timer::class, $timer);
 
         $this->app->alias(Agent::class, 'elastic-apm');
-        $this->app->instance('query-log', $collection);
+        $this->app->instance('apm-spans-log', $collection);
 
     }
 
@@ -216,24 +215,47 @@ class ElasticApmServiceProvider extends ServiceProvider
                 ],
             ];
 
-            app('query-log')->push($query);
+            app('apm-spans-log')->push($query);
         });
     }
 
-		protected function listenForHttpRequests() : HandlerStack
+		public static function getGuzzleMiddleware() : callable
 		{
-			$middleware = Middleware::tap(
-				function (RequestInterface $request, array $options) {
-					\Log::info($request->getUri());
+			return Middleware::tap(
+				function(RequestInterface $request, array $options) {
+					self::$lastHttpRequestStart = microtime(true);
 				},
-				function (RequestInterface $request, array $options, ResponseInterface $response) {
-					\Log::info($request->getUri());
+				function (RequestInterface $request, array $options, FulfilledPromise $response) {
+					// leave early if monitoring is disabled
+					if (config('elastic-apm.active') !== true || config('elastic-apm.spans.httplog.enabled') !== true) {
+						return;
+					}
+
+					$requestTime = (microtime(true) - self::$lastHttpRequestStart) * 1000; // in mileseconds
+
+					$method = $request->getMethod();
+					$host = $request->getUri()->getHost();
+
+					$requestEntry = [
+						// e.g. GET foo.example.net
+						'name' => "{$method} {$host}",
+						'type' => 'external',
+						'subtype' => 'http',
+
+						'start' => round(microtime(true) - $requestTime / 1000, 3),
+						'duration' => round($requestTime, 3),
+
+						'context' => [
+							"http" => [
+								// https://www.elastic.co/guide/en/apm/server/current/span-api.html
+								"method" => $request->getMethod(),
+								"url" => $request->getUri()->__toString(),
+							]
+						]
+					];
+
+					app('apm-spans-log')->push($requestEntry);
 				}
 			);
-
-			$stack = HandlerStack::create();
-			$stack->push($middleware, 'apm_httplog');
-
-			return $stack;
 		}
 }
