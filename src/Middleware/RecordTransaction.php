@@ -90,7 +90,7 @@ class RecordTransaction
 
         if (config('elastic-apm.transactions.use_route_uri')) {
             if (config('elastic-apm.transactions.normalize_uri')) {
-                $transaction->setTransactionName($this->getMormalizedTransactionName($request));
+                $transaction->setTransactionName($this->getNormalizedTransactionName($request));
             }
             else {
                 $transaction->setTransactionName($this->getRouteUriTransactionName($request));
@@ -168,7 +168,7 @@ class RecordTransaction
      *
      * @return string
      */
-    protected function getMormalizedTransactionName(\Illuminate\Http\Request $request): string
+    protected function getNormalizedTransactionName(\Illuminate\Http\Request $request): string
     {
         $path = $this->getRouteUriTransactionName($request);
 
