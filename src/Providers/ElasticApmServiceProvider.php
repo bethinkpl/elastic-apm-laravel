@@ -12,6 +12,10 @@ use PhilKra\ElasticApmLaravel\Apm\SpanCollection;
 use PhilKra\ElasticApmLaravel\Apm\Transaction;
 use PhilKra\ElasticApmLaravel\Contracts\VersionResolver;
 use PhilKra\Helper\Timer;
+use GuzzleHttp\Middleware;
+use GuzzleHttp\HandlerStack;
+use Psr\Http\Message\RequestInterface;
+use GuzzleHttp\Promise\FulfilledPromise;
 
 class ElasticApmServiceProvider extends ServiceProvider
 {
@@ -19,6 +23,9 @@ class ElasticApmServiceProvider extends ServiceProvider
     private $startTime;
     /** @var string  */
     private $sourceConfigPath = __DIR__ . '/../../config/elastic-apm.php';
+
+    /** @var float */
+    private static $lastHttpRequestStart;
 
     /**
      * Bootstrap the application services.
@@ -79,7 +86,7 @@ class ElasticApmServiceProvider extends ServiceProvider
         $this->app->instance(Timer::class, $timer);
 
         $this->app->alias(Agent::class, 'elastic-apm');
-        $this->app->instance('query-log', $collection);
+        $this->app->instance('apm-spans-log', $collection);
 
     }
 
@@ -182,11 +189,20 @@ class ElasticApmServiceProvider extends ServiceProvider
                 ];
             })->values();
 
+
+            // SQL type, e.g. SELECT, INSERT, DELETE, UPDATE, SET, ...
+            $queryType = strtoupper(strtok(trim($query->sql), ' '));
+
+            // @see https://www.elastic.co/guide/en/apm/server/master/span-api.html
             $query = [
-                'name' => 'Eloquent Query',
-                'type' => 'db.mysql.query',
-                'start' => round((microtime(true) - $query->time / 1000 - $this->startTime) * 1000, 3),
+                'name' => $queryType,
+                'action' => 'query',
+                'type' => 'db',
+                'subtype' => 'mysql',
+
                 // calculate start time from duration
+                // $query->time is in milliseconds
+                'start' => round(microtime(true) - $query->time / 1000, 3),
                 'duration' => round($query->time, 3),
                 'stacktrace' => $stackTrace,
                 'context' => [
@@ -199,7 +215,47 @@ class ElasticApmServiceProvider extends ServiceProvider
                 ],
             ];
 
-            app('query-log')->push($query);
+            app('apm-spans-log')->push($query);
         });
     }
+
+		public static function getGuzzleMiddleware() : callable
+		{
+			return Middleware::tap(
+				function(RequestInterface $request, array $options) {
+					self::$lastHttpRequestStart = microtime(true);
+				},
+				function (RequestInterface $request, array $options, FulfilledPromise $response) {
+					// leave early if monitoring is disabled
+					if (config('elastic-apm.active') !== true || config('elastic-apm.spans.httplog.enabled') !== true) {
+						return;
+					}
+
+					$requestTime = (microtime(true) - self::$lastHttpRequestStart) * 1000; // in miliseconds
+
+					$method = $request->getMethod();
+					$host = $request->getUri()->getHost();
+
+					$requestEntry = [
+						// e.g. GET foo.example.net
+						'name' => "{$method} {$host}",
+						'type' => 'external',
+						'subtype' => 'http',
+
+						'start' => round(microtime(true) - $requestTime / 1000, 3),
+						'duration' => round($requestTime, 3),
+
+						'context' => [
+							"http" => [
+								// https://www.elastic.co/guide/en/apm/server/current/span-api.html
+								"method" => $request->getMethod(),
+								"url" => $request->getUri()->__toString(),
+							]
+						]
+					];
+
+					app('apm-spans-log')->push($requestEntry);
+				}
+			);
+		}
 }

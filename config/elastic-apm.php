@@ -42,6 +42,9 @@ return [
         //This option will bundle transaction on the route name without variables
         'use_route_uri' => env('APM_USEROUTEURI', false),
 
+        //This option will normalize transaction names
+        'normalize_uri' => env('APM_NORMALIZEURI', false),
+
     ],
 
     'spans' => [
@@ -57,6 +60,11 @@ return [
 
             // If a query takes longer then 200ms, we enable the query log. Make sure you set enabled = 'auto'
             'threshold' => env('APM_THRESHOLD', 200),
+        ],
+
+        'httplog' => [
+            // Set to false to completely disable HTTP requests logging
+            'enabled' => env('APM_HTTPLOG', true),
         ],
     ],
 ];

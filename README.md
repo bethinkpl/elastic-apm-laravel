@@ -1,11 +1,28 @@
 # PHP Elastic APM for Laravel & Lumen
 
 Laravel package of the https://github.com/philkra/elastic-apm-php-agent library, automatically handling transactions and errors/exceptions. If using `Illuminate\Support\Facades\Auth` the user Id added to the context.
-Tested with Laravel `5.6.*` and the philkra/elastic-apm-php-agent version `7.x`.
+Tested with Laravel `5.7.*` and the philkra/elastic-apm-php-agent version `7.x`.
 
-## Install
+## [Install](https://packagist.org/packages/bethinkpl/elastic-apm-laravel)
 ```
-composer require philkra/elastic-apm-laravel
+composer require bethinkpl/elastic-apm-laravel
+```
+
+## Additional features
+
+* `X-Requested-By` HTTP request header value is set as `labels.requested_by` APM transaction field (`end-user-ajax` value is used when `X-Requested-With: XMLHttpRequest` is set)
+* tracking of HTTP requests performed using GuzzleHttp library. Simply add the following middleware to your Guzzle client:
+
+```php
+<?php
+
+use PhilKra\ElasticApmLaravel\Providers\ElasticApmServiceProvider;
+use GuzzleHttp\HandlerStack;
+
+$handler = HandlerStack::create();
+$handler->push(ElasticApmServiceProvider::getGuzzleMiddleware());
+
+// create your client with 'handler' option passed
 ```
 
 ## Middleware
@@ -92,10 +109,12 @@ The following environment variables are supported in the default configuration:
 |APM_SECRETTOKEN    | Secret token, if required. |
 |APM_APIVERSION     | APM API version, defaults to `v1` (only v1 is supported at this time). |
 |APM_USEROUTEURI    | `true` or `false` defaults to `false`. The default behavior is to record the URL as sent in the request. This can result in excessive unique entries in APM. Set to `true` to have the agent use the route URL instead. |
+|APM_NORMALIZEURI   | `true` or `false` defaults to `false`. If enabled, removes variable parts from URI when generating transaction name (e.g. `GET /foo/bar/123` is reported as `GET /foo/bar/N`). **`APM_USEROUTEURI` needs to be enabled**. |
 |APM_QUERYLOG       | `true` or `false` defaults to 'true'. Set to `false` to completely disable query logging, or to `auto` if you would like to use the threshold feature. |
 |APM_THRESHOLD      | Query threshold in milliseconds, defaults to `200`. If a query takes longer then 200ms, we enable the query log. Make sure you set `APM_QUERYLOG=auto`. |
 |APM_BACKTRACEDEPTH | Defaults to `25`. Depth of backtrace in query span. |
 |APM_RENDERSOURCE   | Defaults to `true`. Include source code in query span. |
+|APM_HTTPLOG        | Defaults to `true`. Will record HTTP requests performed via GuzzleHttp. |
 
 You may also publish the `elastic-apm.php` configuration file to change additional settings:
 

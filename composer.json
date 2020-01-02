@@ -1,6 +1,6 @@
 {
    "name":"bethinkpl/elastic-apm-laravel",
-   "keywords":[  
+   "keywords":[
       "laravel",
       "elastic",
       "APM",
@@ -10,48 +10,50 @@
    ],
    "description":"A package to integrate Elastic APM 7.x into Laravel",
    "license":"MIT",
-   "require":{  
+   "require":{
       "php":">= 7.2",
       "illuminate/database":"5.5.x|5.6.x|5.7.x|5.8.x",
       "illuminate/http":"5.5.x|5.6.x|5.7.x|5.8.x",
       "illuminate/routing":"5.5.x|5.6.x|5.7.x|5.8.x",
       "illuminate/support":"5.5.x|5.6.x|5.7.x|5.8.x",
       "philkra/elastic-apm-php-agent":"7.0.0-rc3",
-      "ramsey/uuid":"^3.0"
+      "ramsey/uuid":"^3.0",
+      "psr/http-message":"^1.0",
+      "guzzlehttp/guzzle":"~6.0"
    },
-   "require-dev":{  
+   "require-dev":{
       "phpunit/phpunit":"6.*"
    },
-   "autoload":{  
-      "psr-4":{  
+   "autoload":{
+      "psr-4":{
          "PhilKra\\ElasticApmLaravel\\":"src/"
       }
    },
-   "autoload-dev":{  
-      "psr-4":{  
+   "autoload-dev":{
+      "psr-4":{
          "PhilKra\\Tests\\":"tests/"
       }
    },
-   "extra":{  
-      "laravel":{  
-         "providers":[  
+   "extra":{
+      "laravel":{
+         "providers":[
             "PhilKra\\ElasticApmLaravel\\Providers\\ElasticApmServiceProvider"
          ],
-         "aliases":{  
+         "aliases":{
             "ElasticApm":"PhilKra\\ElasticApmLaravel\\Facades\\ElasticApm"
          }
       }
    },
-   "config":{  
+   "config":{
       "optimize-autoloader":true
    },
-   "authors":[  
-      {  
+   "authors":[
+      {
          "name":"Philip Krauss",
          "email":"philip@philipkrauss.at",
          "homepage":"https://github.com/philkra/elastic-apm-laravel"
       },
-      {  
+      {
          "name":"George Boot",
          "email":"george@entryninja.com"
       }

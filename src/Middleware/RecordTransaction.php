@@ -5,6 +5,7 @@ namespace PhilKra\ElasticApmLaravel\Middleware;
 use Closure;
 use Illuminate\Support\Facades\Log;
 use PhilKra\Agent;
+use PhilKra\ElasticApmLaravel\Events\Span;
 use PhilKra\Helper\Timer;
 
 class RecordTransaction
@@ -30,7 +31,7 @@ class RecordTransaction
 
     /**
      * [handle description]
-     * @param  Request $request [description]
+     * @param  \Illuminate\Http\Request  $request [description]
      * @param  Closure $next [description]
      * @return [type]           [description]
      */
@@ -64,11 +65,47 @@ class RecordTransaction
             'type' => 'HTTP'
         ]);
 
-        $transaction->setSpans(app('query-log')->toArray());
+        foreach (app('apm-spans-log')->toArray() as $spanContext) {
+            // @see https://www.elastic.co/guide/en/apm/server/master/exported-fields-apm-span.html
+            $spanDb = new Span($spanContext['name'], $transaction);
+            $spanDb->setType($spanContext['type']);
+            $spanDb->setSubtype($spanContext['subtype']);
+            $spanDb->setContext($spanContext['context']);
+
+            // optiponal fields
+            if (isset($spanContext['action'])) {
+                $spanDb->setAction($spanContext['action']);
+            }
+            if (isset($spanContext['stacktrace'])) {
+                $spanDb->setStacktrace($spanContext['stacktrace']->toArray());
+            }
+
+            $spanDb->start();
+            $spanDb->stop($spanContext['duration']); // in [ms]
+
+            $spanDb->setStart($spanContext['start']); // in [us]
+
+            $this->agent->putEvent($spanDb);
+        }
 
         if (config('elastic-apm.transactions.use_route_uri')) {
-            $transaction->setTransactionName($this->getRouteUriTransactionName($request));
+            if (config('elastic-apm.transactions.normalize_uri')) {
+                $transaction->setTransactionName($this->getNormalizedTransactionName($request));
+            }
+            else {
+                $transaction->setTransactionName($this->getRouteUriTransactionName($request));
+            }
         }
+
+        // handle X-Requested-By header
+        $requestedBy = $request->headers->get('X-Requested-By', 'end-user');
+
+        // X-Requested-With: XMLHttpRequest (AJAX requests)
+        if ($request->headers->get('X-Requested-With') === 'XMLHttpRequest' && $requestedBy === 'end-user') {
+            $requestedBy = 'end-user-ajax';
+        }
+
+        $transaction->setTags(['requested_by' => $requestedBy]);
 
         $transaction->stop($this->timer->getElapsedInMilliseconds());
 
@@ -124,6 +161,27 @@ class RecordTransaction
             $request->server->get('REQUEST_METHOD'),
             $path
         );
+    }
+
+    /**
+     * @param  \Illuminate\Http\Request $request
+     *
+     * @return string
+     */
+    protected function getNormalizedTransactionName(\Illuminate\Http\Request $request): string
+    {
+        $path = $this->getRouteUriTransactionName($request);
+
+        // "PUT /api/v2/product/6404" becomes "PUT /api/v2/product/N"
+        $parts = [];
+
+        $tok = strtok($path, '/');
+        while ($tok !== false) {
+            $parts[] = is_numeric($tok) ? 'N' : $tok;
+            $tok = strtok("/");
+        }
+
+        return join('/', $parts);
     }
 
     /**
