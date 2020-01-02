@@ -101,7 +101,7 @@ class RecordTransaction
         $requestedBy = $request->headers->get('X-Requested-By', 'end-user');
 
         // X-Requested-With: XMLHttpRequest (AJAX requests)
-        if ($request->headers->get('X-Requested-With') === 'XMLHttpRequest') {
+        if ($request->headers->get('X-Requested-With') === 'XMLHttpRequest' && $requestedBy === 'end-user') {
             $requestedBy = 'end-user-ajax';
         }
 
