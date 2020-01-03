@@ -225,11 +225,14 @@ class ElasticApmServiceProvider extends ServiceProvider
 				function(RequestInterface $request, array $options) {
 					self::$lastHttpRequestStart = microtime(true);
 				},
-				function (RequestInterface $request, array $options, PromiseInterface $response) {
+				function (RequestInterface $request, array $options, PromiseInterface $promise) {
 					// leave early if monitoring is disabled
 					if (config('elastic-apm.active') !== true || config('elastic-apm.spans.httplog.enabled') !== true) {
 						return;
 					}
+
+					/* @var $response \GuzzleHttp\Psr7\Response */
+					$response = $promise->wait(true);
 
 					$requestTime = (microtime(true) - self::$lastHttpRequestStart) * 1000; // in miliseconds
 
@@ -250,6 +253,7 @@ class ElasticApmServiceProvider extends ServiceProvider
 								// https://www.elastic.co/guide/en/apm/server/current/span-api.html
 								"method" => $request->getMethod(),
 								"url" => $request->getUri()->__toString(),
+								'status_code' => $response->getStatusCode(),
 							]
 						]
 					];
