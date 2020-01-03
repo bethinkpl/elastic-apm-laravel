@@ -2,6 +2,7 @@
 
 namespace PhilKra\ElasticApmLaravel\Providers;
 
+use GuzzleHttp\Exception\RequestException;
 use GuzzleHttp\Promise\PromiseInterface;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Support\Collection;
@@ -232,7 +233,12 @@ class ElasticApmServiceProvider extends ServiceProvider
 					}
 
 					/* @var $response \GuzzleHttp\Psr7\Response */
-					$response = $promise->wait(true);
+					try {
+						$response = $promise->wait(true);
+					}
+					catch (RequestException $ex) {
+						$response = $ex->getResponse();
+					}
 
 					$requestTime = (microtime(true) - self::$lastHttpRequestStart) * 1000; // in miliseconds
 
@@ -253,7 +259,7 @@ class ElasticApmServiceProvider extends ServiceProvider
 								// https://www.elastic.co/guide/en/apm/server/current/span-api.html
 								"method" => $request->getMethod(),
 								"url" => $request->getUri()->__toString(),
-								'status_code' => $response->getStatusCode(),
+								'status_code' => $response ? $response->getStatusCode() : 0,
 							]
 						]
 					];
