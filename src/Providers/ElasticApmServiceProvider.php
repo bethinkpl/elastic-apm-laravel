@@ -2,6 +2,8 @@
 
 namespace PhilKra\ElasticApmLaravel\Providers;
 
+use GuzzleHttp\Exception\RequestException;
+use GuzzleHttp\Promise\PromiseInterface;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Support\Collection;
 use Illuminate\Support\ServiceProvider;
@@ -15,7 +17,6 @@ use PhilKra\Helper\Timer;
 use GuzzleHttp\Middleware;
 use GuzzleHttp\HandlerStack;
 use Psr\Http\Message\RequestInterface;
-use GuzzleHttp\Promise\FulfilledPromise;
 
 class ElasticApmServiceProvider extends ServiceProvider
 {
@@ -225,10 +226,18 @@ class ElasticApmServiceProvider extends ServiceProvider
 				function(RequestInterface $request, array $options) {
 					self::$lastHttpRequestStart = microtime(true);
 				},
-				function (RequestInterface $request, array $options, FulfilledPromise $response) {
+				function (RequestInterface $request, array $options, PromiseInterface $promise) {
 					// leave early if monitoring is disabled
 					if (config('elastic-apm.active') !== true || config('elastic-apm.spans.httplog.enabled') !== true) {
 						return;
+					}
+
+					/* @var $response \GuzzleHttp\Psr7\Response */
+					try {
+						$response = $promise->wait(true);
+					}
+					catch (RequestException $ex) {
+						$response = $ex->getResponse();
 					}
 
 					$requestTime = (microtime(true) - self::$lastHttpRequestStart) * 1000; // in miliseconds
@@ -250,6 +259,7 @@ class ElasticApmServiceProvider extends ServiceProvider
 								// https://www.elastic.co/guide/en/apm/server/current/span-api.html
 								"method" => $request->getMethod(),
 								"url" => $request->getUri()->__toString(),
+								'status_code' => $response ? $response->getStatusCode() : 0,
 							]
 						]
 					];
