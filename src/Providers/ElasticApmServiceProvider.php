@@ -2,6 +2,7 @@
 
 namespace PhilKra\ElasticApmLaravel\Providers;
 
+use GuzzleHttp\Promise\PromiseInterface;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Support\Collection;
 use Illuminate\Support\ServiceProvider;
@@ -15,7 +16,6 @@ use PhilKra\Helper\Timer;
 use GuzzleHttp\Middleware;
 use GuzzleHttp\HandlerStack;
 use Psr\Http\Message\RequestInterface;
-use GuzzleHttp\Promise\FulfilledPromise;
 
 class ElasticApmServiceProvider extends ServiceProvider
 {
@@ -225,7 +225,7 @@ class ElasticApmServiceProvider extends ServiceProvider
 				function(RequestInterface $request, array $options) {
 					self::$lastHttpRequestStart = microtime(true);
 				},
-				function (RequestInterface $request, array $options, FulfilledPromise $response) {
+				function (RequestInterface $request, array $options, PromiseInterface $response) {
 					// leave early if monitoring is disabled
 					if (config('elastic-apm.active') !== true || config('elastic-apm.spans.httplog.enabled') !== true) {
 						return;
