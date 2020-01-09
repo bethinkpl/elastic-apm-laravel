@@ -28,6 +28,9 @@ class ElasticApmServiceProvider extends ServiceProvider
     /** @var float */
     private static $lastHttpRequestStart;
 
+    /** @var bool */
+    private static $isSampled = true;
+
     /**
      * Bootstrap the application services.
      *
@@ -89,6 +92,9 @@ class ElasticApmServiceProvider extends ServiceProvider
         $this->app->alias(Agent::class, 'elastic-apm');
         $this->app->instance('apm-spans-log', $collection);
 
+        // apply transactions reporting sampling
+        $samplingRate = intval(config('elastic-apm.sampling')) ?: 100;
+        self::$isSampled = $samplingRate > mt_rand(0, 100);
     }
 
     /**
