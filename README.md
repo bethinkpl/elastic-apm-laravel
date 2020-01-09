@@ -11,6 +11,7 @@ composer require bethinkpl/elastic-apm-laravel
 ## Additional features
 
 * `X-Requested-By` HTTP request header value is set as `labels.requested_by` APM transaction field (`end-user-ajax` value is used when `X-Requested-With: XMLHttpRequest` is set)
+* sampling of transactions reported to APM
 * tracking of HTTP requests performed using GuzzleHttp library. Simply add the following middleware to your Guzzle client:
 
 ```php
