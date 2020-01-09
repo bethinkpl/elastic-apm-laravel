@@ -44,7 +44,7 @@ class ElasticApmServiceProvider extends ServiceProvider
             ], 'config');
         }
 
-        if (config('elastic-apm.active') === true && config('elastic-apm.spans.querylog.enabled') !== false) {
+        if (config('elastic-apm.active') === true && config('elastic-apm.spans.querylog.enabled') !== false && self::$isSampled) {
             $this->listenForQueries();
         }
     }
@@ -233,8 +233,8 @@ class ElasticApmServiceProvider extends ServiceProvider
 					self::$lastHttpRequestStart = microtime(true);
 				},
 				function (RequestInterface $request, array $options, PromiseInterface $promise) {
-					// leave early if monitoring is disabled
-					if (config('elastic-apm.active') !== true || config('elastic-apm.spans.httplog.enabled') !== true) {
+					// leave early if monitoring is disabled or when this transaction is not sampled
+					if (config('elastic-apm.active') !== true || config('elastic-apm.spans.httplog.enabled') !== true || !self::$isSampled) {
 						return;
 					}
 
