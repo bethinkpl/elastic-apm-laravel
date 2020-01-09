@@ -62,6 +62,10 @@ class ElasticApmServiceProvider extends ServiceProvider
             'elastic-apm'
         );
 
+        // apply transactions reporting sampling
+        $samplingRate = intval(config('elastic-apm.sampling')) ?: 100;
+        self::$isSampled = $samplingRate > mt_rand(0, 100);
+
         $this->app->singleton(Agent::class, function ($app) {
             return new Agent(
                 array_merge(
@@ -70,7 +74,7 @@ class ElasticApmServiceProvider extends ServiceProvider
                         'frameworkVersion' => app()->version(),
                     ],
                     [
-                        'active' => config('elastic-apm.active'),
+                        'active' => config('elastic-apm.active') && self::$isSampled,
                         'httpClient' => config('elastic-apm.httpClient'),
                     ],
                     $this->getAppConfig(),
@@ -91,10 +95,6 @@ class ElasticApmServiceProvider extends ServiceProvider
 
         $this->app->alias(Agent::class, 'elastic-apm');
         $this->app->instance('apm-spans-log', $collection);
-
-        // apply transactions reporting sampling
-        $samplingRate = intval(config('elastic-apm.sampling')) ?: 100;
-        self::$isSampled = $samplingRate > mt_rand(0, 100);
     }
 
     /**
