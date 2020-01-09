@@ -4,6 +4,9 @@ return [
     // Sets whether the apm reporting should be active or not
     'active'        => env('APM_ACTIVE', true),
 
+    // Applies sampling of transactions to be reported to APM, defaults to 100%
+    'sampling'      => env('APM_SAMPLING', 100),
+
     'app' => [
         // The app name that will identify your app in Kibana / Elastic APM
         'appName'       => env('APM_APPNAME', 'Laravel'),

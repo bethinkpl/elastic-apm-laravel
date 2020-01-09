@@ -11,6 +11,7 @@ composer require bethinkpl/elastic-apm-laravel
 ## Additional features
 
 * `X-Requested-By` HTTP request header value is set as `labels.requested_by` APM transaction field (`end-user-ajax` value is used when `X-Requested-With: XMLHttpRequest` is set)
+* sampling of transactions reported to APM
 * tracking of HTTP requests performed using GuzzleHttp library. Simply add the following middleware to your Guzzle client:
 
 ```php
@@ -115,6 +116,7 @@ The following environment variables are supported in the default configuration:
 |APM_BACKTRACEDEPTH | Defaults to `25`. Depth of backtrace in query span. |
 |APM_RENDERSOURCE   | Defaults to `true`. Include source code in query span. |
 |APM_HTTPLOG        | Defaults to `true`. Will record HTTP requests performed via GuzzleHttp. |
+|APM_SAMPLING       | Defaults to `100`. Sets the percentage of transactions that will be reported to APM (ranges from 0 to 100).
 
 You may also publish the `elastic-apm.php` configuration file to change additional settings:
 

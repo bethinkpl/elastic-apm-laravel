@@ -28,6 +28,9 @@ class ElasticApmServiceProvider extends ServiceProvider
     /** @var float */
     private static $lastHttpRequestStart;
 
+    /** @var bool */
+    private static $isSampled = true;
+
     /**
      * Bootstrap the application services.
      *
@@ -41,7 +44,7 @@ class ElasticApmServiceProvider extends ServiceProvider
             ], 'config');
         }
 
-        if (config('elastic-apm.active') === true && config('elastic-apm.spans.querylog.enabled') !== false) {
+        if (config('elastic-apm.active') === true && config('elastic-apm.spans.querylog.enabled') !== false && self::$isSampled) {
             $this->listenForQueries();
         }
     }
@@ -59,6 +62,10 @@ class ElasticApmServiceProvider extends ServiceProvider
             'elastic-apm'
         );
 
+        // apply transactions reporting sampling
+        $samplingRate = intval(config('elastic-apm.sampling')) ?: 100;
+        self::$isSampled = $samplingRate > mt_rand(0, 100);
+
         $this->app->singleton(Agent::class, function ($app) {
             return new Agent(
                 array_merge(
@@ -67,7 +74,7 @@ class ElasticApmServiceProvider extends ServiceProvider
                         'frameworkVersion' => app()->version(),
                     ],
                     [
-                        'active' => config('elastic-apm.active'),
+                        'active' => config('elastic-apm.active') && self::$isSampled,
                         'httpClient' => config('elastic-apm.httpClient'),
                     ],
                     $this->getAppConfig(),
@@ -88,7 +95,6 @@ class ElasticApmServiceProvider extends ServiceProvider
 
         $this->app->alias(Agent::class, 'elastic-apm');
         $this->app->instance('apm-spans-log', $collection);
-
     }
 
     /**
@@ -227,8 +233,8 @@ class ElasticApmServiceProvider extends ServiceProvider
 					self::$lastHttpRequestStart = microtime(true);
 				},
 				function (RequestInterface $request, array $options, PromiseInterface $promise) {
-					// leave early if monitoring is disabled
-					if (config('elastic-apm.active') !== true || config('elastic-apm.spans.httplog.enabled') !== true) {
+					// leave early if monitoring is disabled or when this transaction is not sampled
+					if (config('elastic-apm.active') !== true || config('elastic-apm.spans.httplog.enabled') !== true || !self::$isSampled) {
 						return;
 					}
 
