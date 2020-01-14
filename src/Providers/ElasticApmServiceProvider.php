@@ -5,17 +5,18 @@ namespace PhilKra\ElasticApmLaravel\Providers;
 use GuzzleHttp\Exception\RequestException;
 use GuzzleHttp\Promise\PromiseInterface;
 use Illuminate\Database\Events\QueryExecuted;
+use Illuminate\Redis\Events\CommandExecuted;
 use Illuminate\Support\Collection;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Redis;
 use PhilKra\Agent;
 use PhilKra\ElasticApmLaravel\Apm\SpanCollection;
 use PhilKra\ElasticApmLaravel\Apm\Transaction;
 use PhilKra\ElasticApmLaravel\Contracts\VersionResolver;
 use PhilKra\Helper\Timer;
 use GuzzleHttp\Middleware;
-use GuzzleHttp\HandlerStack;
 use Psr\Http\Message\RequestInterface;
 
 class ElasticApmServiceProvider extends ServiceProvider
@@ -46,6 +47,7 @@ class ElasticApmServiceProvider extends ServiceProvider
 
         if (config('elastic-apm.active') === true && config('elastic-apm.spans.querylog.enabled') !== false && self::$isSampled) {
             $this->listenForQueries();
+            $this->listenForRedisCommands();
         }
     }
 
@@ -164,6 +166,32 @@ class ElasticApmServiceProvider extends ServiceProvider
         });
     }
 
+    protected function getStackTrace(): Collection
+    {
+        $stackTrace = $this->stripVendorTraces(
+            collect(
+                debug_backtrace(DEBUG_BACKTRACE_PROVIDE_OBJECT, config('elastic-apm.spans.backtraceDepth', 50))
+            )
+        );
+
+        return $stackTrace->map(function ($trace) {
+            $sourceCode = $this->getSourceCode($trace);
+
+            return [
+                'function' => Arr::get($trace, 'function') . Arr::get($trace, 'type') . Arr::get($trace,
+                        'function'),
+                'abs_path' => Arr::get($trace, 'file'),
+                'filename' => basename(Arr::get($trace, 'file')),
+                'lineno' => Arr::get($trace, 'line', 0),
+                'library_frame' => false,
+                'vars' => $vars ?? null,
+                'pre_context' => optional($sourceCode->get('pre_context'))->toArray(),
+                'context_line' => optional($sourceCode->get('context_line'))->first(),
+                'post_context' => optional($sourceCode->get('post_context'))->toArray(),
+            ];
+        })->values();
+    }
+
     protected function listenForQueries()
     {
         $this->app->events->listen(QueryExecuted::class, function (QueryExecuted $query) {
@@ -173,28 +201,7 @@ class ElasticApmServiceProvider extends ServiceProvider
                 }
             }
 
-            $stackTrace = $this->stripVendorTraces(
-                collect(
-                    debug_backtrace(DEBUG_BACKTRACE_PROVIDE_OBJECT, config('elastic-apm.spans.backtraceDepth', 50))
-                )
-            );
-
-            $stackTrace = $stackTrace->map(function ($trace) {
-                $sourceCode = $this->getSourceCode($trace);
-
-                return [
-                    'function' => Arr::get($trace, 'function') . Arr::get($trace, 'type') . Arr::get($trace,
-                            'function'),
-                    'abs_path' => Arr::get($trace, 'file'),
-                    'filename' => basename(Arr::get($trace, 'file')),
-                    'lineno' => Arr::get($trace, 'line', 0),
-                    'library_frame' => false,
-                    'vars' => $vars ?? null,
-                    'pre_context' => optional($sourceCode->get('pre_context'))->toArray(),
-                    'context_line' => optional($sourceCode->get('context_line'))->first(),
-                    'post_context' => optional($sourceCode->get('post_context'))->toArray(),
-                ];
-            })->values();
+            $stackTrace = $this->getStackTrace();
 
 
             // SQL type, e.g. SELECT, INSERT, DELETE, UPDATE, SET, ...
@@ -218,6 +225,34 @@ class ElasticApmServiceProvider extends ServiceProvider
                         'statement' => $query->sql,
                         'type' => 'sql',
                         'user' => $query->connection->getConfig('username'),
+                    ],
+                ],
+            ];
+
+            app('apm-spans-log')->push($query);
+        });
+    }
+
+    protected function listenForRedisCommands()
+    {
+        Redis::enableEvents();
+        $this->app->events->listen(CommandExecuted::class, function (CommandExecuted $commandExecuted) {
+            $stackTrace = $this->getStackTrace();
+
+            // @see https://www.elastic.co/guide/en/apm/server/master/span-api.html
+            $query = [
+                'name' => $commandExecuted->command,
+                'action' => 'command',
+                'type' => 'db',
+                'subtype' => 'Redis',
+
+                // calculate start time from duration
+                'start' => round(microtime(true) - $commandExecuted->time / 1000, 3),
+                'duration' => round($commandExecuted->time, 3),
+                'stacktrace' => $stackTrace,
+                'context' => [
+                    'db' => [
+                        'instance' => $commandExecuted->connectionName,
                     ],
                 ],
             ];
