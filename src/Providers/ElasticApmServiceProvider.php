@@ -253,6 +253,7 @@ class ElasticApmServiceProvider extends ServiceProvider
                 'context' => [
                     'db' => [
                         'instance' => $commandExecuted->connectionName,
+                        'statement' => json_encode($commandExecuted->parameters),
                     ],
                 ],
             ];
