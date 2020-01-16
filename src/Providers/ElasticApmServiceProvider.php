@@ -203,9 +203,17 @@ class ElasticApmServiceProvider extends ServiceProvider
 
             $stackTrace = $this->getStackTrace();
 
-
             // SQL type, e.g. SELECT, INSERT, DELETE, UPDATE, SET, ...
             $queryType = strtoupper(strtok(trim($query->sql), ' '));
+
+            // normalize the query
+            $statement = trim($query->sql);
+            // remove subsequent "?, " placeholders in IN () condidtions
+            // e.g. `tags`.`id` in (?, ?, ?, ?, ?, ..., ?, ?, ?))
+            $statement = preg_replace('#(\?, )+#', '?, ', $statement);
+            // normalize the query by removing numeric vaules
+            // e.g. where user_quiz_results.user_id = 1234
+            $statement = preg_replace('#\d+#', '?', $statement);
 
             // @see https://www.elastic.co/guide/en/apm/server/master/span-api.html
             $query = [
@@ -219,10 +227,12 @@ class ElasticApmServiceProvider extends ServiceProvider
                 'start' => round(microtime(true) - $query->time / 1000, 3),
                 'duration' => round($query->time, 3),
                 'stacktrace' => $stackTrace,
+
+                // @see https://github.com/elastic/apm-server/blob/master/docs/fields.asciidoc#apm-span-fields
                 'context' => [
                     'db' => [
                         'instance' => $query->connection->getDatabaseName(),
-                        'statement' => $query->sql,
+                        'statement' => $statement,
                         'type' => 'sql',
                         'user' => $query->connection->getConfig('username'),
                     ],
