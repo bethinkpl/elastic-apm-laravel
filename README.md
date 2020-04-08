@@ -8,6 +8,13 @@ Tested with Laravel `5.7.*` and the philkra/elastic-apm-php-agent version `7.x`.
 composer require bethinkpl/elastic-apm-laravel
 ```
 
+## Use local code in wnl-platform instead of a released package
+```
+rm -rf /code/wnl-platform/vendor/bethinkpl/elastic-apm-laravel
+ln -s /code/elastic-apm-laravel /code/wnl-platform/vendor/bethinkpl
+```
+Make sure to use absolute paths.
+
 ## Additional features
 
 * `X-Requested-By` HTTP request header value is set as `labels.requested_by` APM transaction field (`end-user-ajax` value is used when `X-Requested-With: XMLHttpRequest` is set)
