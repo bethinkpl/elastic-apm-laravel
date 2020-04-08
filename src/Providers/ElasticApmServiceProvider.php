@@ -4,7 +4,11 @@ namespace PhilKra\ElasticApmLaravel\Providers;
 
 use GuzzleHttp\Exception\RequestException;
 use GuzzleHttp\Promise\PromiseInterface;
+use Illuminate\Database\Events\ConnectionEvent;
 use Illuminate\Database\Events\QueryExecuted;
+use Illuminate\Database\Events\TransactionBeginning;
+use Illuminate\Database\Events\TransactionCommitted;
+use Illuminate\Database\Events\TransactionRolledBack;
 use Illuminate\Redis\Events\CommandExecuted;
 use Illuminate\Support\Collection;
 use Illuminate\Support\ServiceProvider;
@@ -47,6 +51,7 @@ class ElasticApmServiceProvider extends ServiceProvider
 
         if (config('elastic-apm.active') === true && config('elastic-apm.spans.querylog.enabled') !== false && self::$isSampled) {
             $this->listenForQueries();
+            $this->listenForTransactions();
             $this->listenForRedisCommands();
         }
     }
@@ -243,6 +248,44 @@ class ElasticApmServiceProvider extends ServiceProvider
         });
     }
 
+    protected function listenForTransactions()
+    {
+        $this->app->events->listen(TransactionBeginning::class, function (TransactionBeginning $transactionBeginning) {
+            self::$dbTransactionStartsByDB[$transactionBeginning->connection->getDatabaseName()][] = microtime(true);
+        });
+        $this->app->events->listen([TransactionCommitted::class, TransactionRolledBack::class], function (
+            ConnectionEvent $connectionEvent
+        ) {
+            $dbName = $connectionEvent->connection->getDatabaseName();
+            $transactionStart = array_pop(self::$dbTransactionStartsByDB[$dbName]);
+
+            $stackTrace = $this->getStackTrace();
+
+            // @see https://www.elastic.co/guide/en/apm/server/master/span-api.html
+            $query = [
+                'name' => $connectionEvent instanceof TransactionCommitted ? 'TRANSACTION COMMIT' : 'TRANSACTION ROLLBACK',
+                'action' => 'connection',
+                'type' => 'db',
+                'subtype' => 'mysql',
+
+                'start' => $transactionStart,
+                'duration' => round((microtime(true) - $transactionStart) * 1000, 3),
+                'stacktrace' => $stackTrace,
+
+                // @see https://github.com/elastic/apm-server/blob/master/docs/fields.asciidoc#apm-span-fields
+                'context' => [
+                    'db' => [
+                        'instance' => $dbName,
+                        'type' => 'sql',
+                        'user' => $connectionEvent->connection->getConfig('username'),
+                    ],
+                ],
+            ];
+
+            app('apm-spans-log')->push($query);
+        });
+    }
+
     protected function listenForRedisCommands()
     {
         Redis::enableEvents();
@@ -272,52 +315,52 @@ class ElasticApmServiceProvider extends ServiceProvider
         });
     }
 
-		public static function getGuzzleMiddleware() : callable
-		{
-			return Middleware::tap(
-				function(RequestInterface $request, array $options) {
-					self::$lastHttpRequestStart = microtime(true);
-				},
-				function (RequestInterface $request, array $options, PromiseInterface $promise) {
-					// leave early if monitoring is disabled or when this transaction is not sampled
-					if (config('elastic-apm.active') !== true || config('elastic-apm.spans.httplog.enabled') !== true || !self::$isSampled) {
-						return;
-					}
+    public static function getGuzzleMiddleware() : callable
+    {
+        return Middleware::tap(
+            function(RequestInterface $request, array $options) {
+                self::$lastHttpRequestStart = microtime(true);
+            },
+            function (RequestInterface $request, array $options, PromiseInterface $promise) {
+                // leave early if monitoring is disabled or when this transaction is not sampled
+                if (config('elastic-apm.active') !== true || config('elastic-apm.spans.httplog.enabled') !== true || !self::$isSampled) {
+                    return;
+                }
 
-					/* @var $response \GuzzleHttp\Psr7\Response */
-					try {
-						$response = $promise->wait(true);
-					}
-					catch (RequestException $ex) {
-						$response = $ex->getResponse();
-					}
+                /* @var $response \GuzzleHttp\Psr7\Response */
+                try {
+                    $response = $promise->wait(true);
+                }
+                catch (RequestException $ex) {
+                    $response = $ex->getResponse();
+                }
 
-					$requestTime = (microtime(true) - self::$lastHttpRequestStart) * 1000; // in miliseconds
+                $requestTime = (microtime(true) - self::$lastHttpRequestStart) * 1000; // in miliseconds
 
-					$method = $request->getMethod();
-					$host = $request->getUri()->getHost();
+                $method = $request->getMethod();
+                $host = $request->getUri()->getHost();
 
-					$requestEntry = [
-						// e.g. GET foo.example.net
-						'name' => "{$method} {$host}",
-						'type' => 'external',
-						'subtype' => 'http',
+                $requestEntry = [
+                    // e.g. GET foo.example.net
+                    'name' => "{$method} {$host}",
+                    'type' => 'external',
+                    'subtype' => 'http',
 
-						'start' => round(microtime(true) - $requestTime / 1000, 3),
-						'duration' => round($requestTime, 3),
+                    'start' => round(microtime(true) - $requestTime / 1000, 3),
+                    'duration' => round($requestTime, 3),
 
-						'context' => [
-							"http" => [
-								// https://www.elastic.co/guide/en/apm/server/current/span-api.html
-								"method" => $request->getMethod(),
-								"url" => $request->getUri()->__toString(),
-								'status_code' => $response ? $response->getStatusCode() : 0,
-							]
-						]
-					];
+                    'context' => [
+                        "http" => [
+                            // https://www.elastic.co/guide/en/apm/server/current/span-api.html
+                            "method" => $request->getMethod(),
+                            "url" => $request->getUri()->__toString(),
+                            'status_code' => $response ? $response->getStatusCode() : 0,
+                        ]
+                    ]
+                ];
 
-					app('apm-spans-log')->push($requestEntry);
-				}
-			);
-		}
+                app('apm-spans-log')->push($requestEntry);
+            }
+        );
+    }
 }
