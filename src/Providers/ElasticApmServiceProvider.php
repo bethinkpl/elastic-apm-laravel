@@ -36,6 +36,9 @@ class ElasticApmServiceProvider extends ServiceProvider
     /** @var bool */
     private static $isSampled = true;
 
+    // We needs to save an array of transaction starts because we need handle nested transactions
+    private static $dbTransactionStartsByDB = [];
+
     /**
      * Bootstrap the application services.
      *
