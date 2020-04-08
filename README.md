@@ -10,8 +10,9 @@ composer require bethinkpl/elastic-apm-laravel
 
 ## Use local code in wnl-platform instead of a released package
 ```
-rm -rf /code/wnl-platform/vendor/bethinkpl/elastic-apm-laravel
-ln -s /code/elastic-apm-laravel /code/wnl-platform/vendor/bethinkpl
+cd wnl-platform/vendor/bethinkpl/
+rm -rf elastic-apm-laravel
+ln -s ../../../elastic-apm-laravel ./elastic-apm-laravel
 ```
 Make sure to use absolute paths.
 
