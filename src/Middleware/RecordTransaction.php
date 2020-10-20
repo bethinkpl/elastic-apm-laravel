@@ -126,7 +126,7 @@ class RecordTransaction
             $this->agent->send();
         }
         catch(\Throwable $t) {
-            Log::error(__METHOD__ . ' - ' . get_class($t) . ' - ' . $t->getMessage());
+            Log::error(__METHOD__ . ' - ' . get_class($t), ['message' => $t->getMessage()]);
         }
     }
 
