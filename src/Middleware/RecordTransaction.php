@@ -125,6 +125,9 @@ class RecordTransaction
         try {
             $this->agent->send();
         }
+        catch(\GuzzleHttp\Exception\ConnectException $ex) {
+            Log::info(__METHOD__ . ' - ' . get_class($ex), ['message' => $ex->getMessage()]);
+        }
         catch(\Throwable $t) {
             Log::error(__METHOD__ . ' - ' . get_class($t), ['message' => $t->getMessage()]);
         }
