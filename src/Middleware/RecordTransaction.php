@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Log;
 use PhilKra\Agent;
 use PhilKra\ElasticApmLaravel\Events\Span;
 use PhilKra\Helper\Timer;
+use Ramsey\Uuid\Uuid;
 
 class RecordTransaction
 {
@@ -180,7 +181,7 @@ class RecordTransaction
 
         $tok = strtok($path, '/');
         while ($tok !== false) {
-            $parts[] = is_numeric($tok) ? 'N' : $tok;
+            $parts[] = is_numeric($tok) || Uuid::isValid($tok) ? 'N' : $tok;
             $tok = strtok("/");
         }
 
