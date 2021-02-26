@@ -11,12 +11,12 @@ use Illuminate\Support\Collection;
  */
 class SpanCollection extends Collection
 {
-    public function push($value)
+    public function push(...$values)
     {
         if ($this->count() >= config('elastic-apm.spans.maxTraceItems')) {
             return;
         }
 
-        parent::push($value);
+        parent::push(...$values);
     }
 }
